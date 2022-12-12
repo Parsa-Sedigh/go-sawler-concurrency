@@ -33,7 +33,7 @@ There's a couple of ways. 3 good ways and 1 bad way. The bad way is to use `time
 Good ways:
 1) waitGroups
 2) mutexes
-3) channels (the most sophisticated way of dealing with concurrency and most powerful)
+3) channels (the most sophisticated(preferred) way of dealing with concurrency and most powerful)
 
 We can use wait groups which allows us to wait for certain things to happen and then continue once they've taken place.
 
