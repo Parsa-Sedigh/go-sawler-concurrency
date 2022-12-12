@@ -30,8 +30,12 @@ How do we fix this?
 
 There's a couple of ways. 3 good ways and 1 bad way. The bad way is to use `time.Sleep(1 * time.Second)` after spawning the goroutine.
 
-We can use wait groups which allows us to wait for certain things to happen and then continue once they've taken place.
+Good ways:
+1) waitGroups
+2) mutexes
+3) channels (the most sophisticated way of dealing with concurrency and most powerful)
 
+We can use wait groups which allows us to wait for certain things to happen and then continue once they've taken place.
 
 ## 10-3. WaitGroups to the rescue
 The previous solution was a terrible solution because if we had more goroutines, eventually they would take more than 1 second and the second
@@ -44,6 +48,23 @@ that's entirely decided by the go's scheduler.
 Once you created a wait group, you shouldn't copy it and instead pass pointers to it to the functions that use that wait group. 
 
 ## 11-4. Writing tests with WaitGroups
+When you're printing sth, you're printing to `OS.Stdout` .
+
+Remember you never hand wait groups around, you always hand pointers to wait groups around. It's much safer.
+
+As you see in the code of this lecture, when writing console apps, it's a bit tricky to capture the output(standard output) so that we can test it,
+but it's not that difficult.
+
 ## 12-5. Challenge working with WaitGroup
+You should write 3 tests: one for updateMessage() func, one for printMessage and one for main. So we need to capture stdOut and don't forget to
+set stdOut back to what it's supposed to be when you're done.
+
 ## 13-5.2 go-concurrency-0240-goroutines-4
+
 ## 14-6. Solution to Challenge
+To run the tests, run:
+```shell
+go test -v .
+```
+
+`sync.waitGroup` is the easiest way to deal with concurrency.
