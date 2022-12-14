@@ -37,12 +37,39 @@ go test -race .
 to run the main_test.go in this lesson's code,  since we have 2 goroutines running in the background and both accessing the same data(msg variable),
 we would get `WARNING: DATA RACE`. Remember when you run the test without -race flag, it passes, but with that flag, it shows there's problem.
 So you don't have to test for race condition by **running** your program, you actually write tests and add that -race flag to make sure everything is gonna
-behave as expected
+behave as expected.
 
 ## 19-5. A more complex example
+The example is about how much money someone's gonna make in the next year(the next 52 weeks).
+
+After writing the program, if you run it with -race flag, we would get the data race warning because we're accessing the `bankBalance` variable from
+multiple goroutines running at the same time, potentially at the same instant, but certainly there's gonna be an overlap of accesses to that
+particular shared resource. Here's where we use sync.mutex.
+
 ## 20-6. Writing a test for our weekly income project
+By default main func is it's own go routine.
+
+Run the test for this lesson in two ways:
+```shell
+go test .
+// and
+go test -race . # to check for race conditions
+```
 ## 21-7. ProducerConsumer - Using Channels for the first time
+Channels allow one goroutine to exchange data with another goroutine.
 ## 22-8. Getting started with the Producer - the pizzeria function
+You can run:
+```shell
+go get <url of the repo>
+```
+to install a package.
+
+A `chan chan` gives me a means of closing the channel.
+
+The `select` statement allows us to determine what action to take based upon what kind of information we got back from a given channel.
+
+When we're running goroutines, we're running them concurrently beside the **main** goroutine(main function is a goroutine).
+
 ## 23-9. Making a pizza the makePizza function
 ## 24-10. Finishing up the Producer code
 ## 25-11. Creating and running the consumer ordering a pizza
