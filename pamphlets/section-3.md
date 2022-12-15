@@ -74,3 +74,4 @@ When we're running goroutines, we're running them concurrently beside the **main
 ## 24-10. Finishing up the Producer code
 ## 25-11. Creating and running the consumer ordering a pizza
 ## 26-12. Finishing up our ProducerConsumer project
+We didn't use wait group or sync.mutex, but you can solve this using them.
