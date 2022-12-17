@@ -12,7 +12,41 @@ There are a couple of different drives for postgres, one is PQ but it says use t
 want too use redis and for this, install: `scs/redisstore`. Also install the chi router: `go-chi/chi/v5`.
 
 ## 48-3. Setting up our Docker development environment
+We're gonna use redis as a store for our session info and we're also gonna require some kind of mail server, a dummy mail server that will capture mail
+for us and we're gonna use docker for that.
+
+**Mailhog**(dummy mail server): it allows us to send email without actually sending email! Mailhog captures it and if offers a web interface where we can go and look 
+at our email.
+
+In docker-compose file, we specified a volume for storing the data for postgres in the `./db-data/postgresa/...`. Now in a lot of cases, 
+docker will create that for you, but for safety, you can create a new folder at the root level of your project called db-data and `postgres` directory and
+one for `redis`.
+
+Then you scan run:
+```shell
+docker compose up -d # -d runs this in the background
+```
+
+Now you want to open your favorite database client(for not having to use command line) like `beekeeper studio`.
+
 ## 49-4. Adding postgres
+Now we need to setup the DB like connecting to it in code, but for this, we want to connect to it using the DB client and enter user and password and
+the name of the DB you want to connect to(in dev, we're connecting to localhost as host).
+
+Then connect to DB in code.
+
+By saying:
+```go
+import (
+    _ "import path"
+)
+
+```
+We say even though this package isn't directly used in the code, we still need to have it there.
+
+While the necessary containers are running, run the program. But we need the DSN. Now we could just set an environment variable and run the program,
+but this is the point where we should start using `make`.
+
 ## 50-5. Setting up a Makefile
 ## 51-6. Adding sessions & Redis
 ## 52-7. Setting up the application config
