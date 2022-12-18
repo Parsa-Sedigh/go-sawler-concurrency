@@ -48,8 +48,17 @@ While the necessary containers are running, run the program. But we need the DSN
 but this is the point where we should start using `make`.
 
 ## 50-5. Setting up a Makefile
+The process of creating a makefile on windows is different than on mac.
+
+It's good practice when building a binary go app to set CGO_ENABLED to 0 if you're not using CGO.
+
+DSN == data source name
+
+Run make start in the same directory that the Makefile exist to run the app (like connect to the DB) 
+
 ## 51-6. Adding sessions & Redis
 ## 52-7. Setting up the application config
+Create config.go in cmd>web directory.
 ## 53-8. Setting up a route & handler for the home page, and starting the web server
 ## 54-9. Setting up templates and building a render function
 ## 55-10. Adding session middleware

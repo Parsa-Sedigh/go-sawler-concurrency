@@ -2,11 +2,16 @@ package main
 
 import (
 	"database/sql"
+	"github.com/alexedwards/scs/redisstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/gomodule/redigo/redis"
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"log"
+	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -17,16 +22,32 @@ func main() {
 	db := initDB()
 
 	// create sessions
+	session := initSession()
+
+	// create loggers
+	// in production, you're gonna write to a file,
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+
+	// we want to find out where the error took place, so add log.Lshortfile
+	errorLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
 	// create channels
 
 	// create waitgroup
+	wg := sync.WaitGroup{}
 
 	// set up the application config
+	app := Config{
+		Session:  session,
+		Db:       db,
+		InfoLog:  infoLog,
+		ErrorLog: errorLog,
+		Wait:     &wg,
+	}
 
 	// set up mail
 
-	// listen for web connections
+	// listen for web connections. This requires that we have sth like a routes file and also handlers
 }
 
 func initDB() *sql.DB {
@@ -36,6 +57,8 @@ func initDB() *sql.DB {
 	if conn == nil {
 		log.Panic("can't connect to database")
 	}
+
+	return conn
 }
 
 /* We want to connect to DB some fixed number of times and if we can't do it after that many tries, then will just die.*/
@@ -61,6 +84,8 @@ func connectToDB() *sql.DB {
 
 		log.Println("Backing off for 1 second")
 		time.Sleep(1 * time.Second) // 1 second should be enough time to too the DB
+		counts++
+
 		continue
 	}
 }
@@ -78,4 +103,34 @@ func openDB(dsn string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func initSession() *scs.SessionManager {
+	// set up session
+	session := scs.New()
+
+	// with this line, we tell session store all of our info for every session in redis
+	session.Store = redisstore.New(initRedis())
+	session.Lifetime = 24 * time.Hour
+	session.Cookie.Persist = true
+	session.Cookie.SameSite = http.SameSiteLaxMode
+
+	// this actually won't be secure in localhost connection but it will be secure when it goes live
+	session.Cookie.Secure = true
+
+	return session
+}
+
+// we connect to redis using this function
+func initRedis() *redis.Pool {
+	// this variable is a pool of redis connections
+	redisPool := &redis.Pool{
+		// maximum time for an idle connection:
+		MaxIdle: 10,
+		Dial: func() (redis.Conn, error) {
+			return redis.Dial("tcp", os.Getenv("REDIS"))
+		},
+	}
+
+	return redisPool
 }
