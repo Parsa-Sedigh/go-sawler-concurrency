@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/alexedwards/scs/redisstore"
 	"github.com/alexedwards/scs/v2"
 	"github.com/gomodule/redigo/redis"
@@ -48,6 +49,24 @@ func main() {
 	// set up mail
 
 	// listen for web connections. This requires that we have sth like a routes file and also handlers
+	app.serve()
+}
+
+// this function starts a web server
+func (app *Config) serve() {
+	// start http server
+	// srv means serve
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", webPort), // the address we're gonna listen on(webPort with any IP address on this particularR machine)
+		Handler: app.routes(),
+	}
+
+	app.InfoLog.Println("Starting web server...")
+
+	err := srv.ListenAndServe()
+	if err != nil {
+		log.Panic(err)
+	}
 }
 
 func initDB() *sql.DB {

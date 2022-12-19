@@ -59,9 +59,30 @@ Run make start in the same directory that the Makefile exist to run the app (lik
 ## 51-6. Adding sessions & Redis
 ## 52-7. Setting up the application config
 Create config.go in cmd>web directory.
+
 ## 53-8. Setting up a route & handler for the home page, and starting the web server
+After finishing this lesson, we can start the server in background by saying: `make start` and stop by: `make stop`.
+
 ## 54-9. Setting up templates and building a render function
+The `base.layout.gohtml` is the base layout for every template.
+
+To render the templates, create a file named render.go . There, create `pathToTemplates` var and we did this so when we rite tests,
+we don't run into the problem of having to somehow override a string that's a constant.
+
+Now we need sth to store datta in that we're gonna pass too the templates for this, let's create `TemplateData` struct type which specifies the kind of
+things we're gonna pass to templates(we might not use all of the fields in there).
+
+We can use `interface{}` instead of `any` in go. It's functionally equivalent.
+
+If we have one template that depends on a partial oro a layout oor anything like that, then I need to include all oof those templates
+and direct the full path name too every one of them, when we go to parse the templates.
+
+There are certain kinds of data we want too pass too every single template, so what we could we do to make sure that every template get that
+data? `AddDefaultData` func.
+
+
 ## 55-10. Adding session middleware
+
 ## 56-11. Setting up additional stub handlers and routes
 ## 57-12. Implementing graceful shutdown
 ## 58-13. Populating the database
