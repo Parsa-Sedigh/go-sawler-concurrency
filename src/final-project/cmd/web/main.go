@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"encoding/gob"
+	"final-project/data"
 	"fmt"
 	"github.com/alexedwards/scs/redisstore"
 	"github.com/alexedwards/scs/v2"
@@ -12,7 +14,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -43,10 +47,14 @@ func main() {
 		Db:       db,
 		InfoLog:  infoLog,
 		ErrorLog: errorLog,
-		Wait:     &wg,
+		Wait:     &wg, // we have a wait group available to our entire application
+		Models:   data.New(db),
 	}
 
 	// set up mail
+
+	// listen for signals(SIGTERM and SIGINT)
+	go app.listenForShutdown()
 
 	// listen for web connections. This requires that we have sth like a routes file and also handlers
 	app.serve()
@@ -125,6 +133,8 @@ func openDB(dsn string) (*sql.DB, error) {
 }
 
 func initSession() *scs.SessionManager {
+	gob.Register(data.User{})
+
 	// set up session
 	session := scs.New()
 
@@ -152,4 +162,31 @@ func initRedis() *redis.Pool {
 	}
 
 	return redisPool
+}
+
+func (app *Config) listenForShutdown() {
+	// the size of 1 is unnecessary but we put there anyway
+	quit := make(chan os.Signal, 1)
+
+	/* When we get the interrupt signal(syscall.SIGINT) to stop the application OR syscall.SIGTERM to terminate the app which are the two things we're
+	listening for, block on the quit channel. */
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	/* This just pauses until we actually get the request to interrupt or terminate the running the app*/
+	<-quit
+
+	/* If we get here, it means we had received sth from the quit channel.  */
+	app.shutdown()
+	os.Exit(0)
+}
+
+func (app *Config) shutdown() {
+	// perform any cleanup taSks
+	app.InfoLog.Println("would run cleanup tasks...")
+
+	/* After we run any cleanup tasks, we're gonna block until the wait group is empty and once all the semaphore count in that wait group is 0.
+	we move to the next line.*/
+	app.Wait.Wait()
+
+	app.InfoLog.Println("closing channels and shutting down application ...")
 }

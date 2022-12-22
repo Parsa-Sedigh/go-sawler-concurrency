@@ -35,7 +35,7 @@ could be nil instead oof a  zero--value and we can check for nil easily ini the 
 func (app *Config) render(w http.ResponseWriter, r *http.Request, t string, td *TemplateData) {
 	// these have tto be here for every template that we want to render
 	partials := []string{
-		fmt.Sprintf("%s/base.layout.gothml", pathToTemplates),
+		fmt.Sprintf("%s/base.layout.gohtml", pathToTemplates),
 		fmt.Sprintf("%s/header.partial.gohtml", pathToTemplates),
 		fmt.Sprintf("%s/navbar.partial.gohtml", pathToTemplates),
 		fmt.Sprintf("%s/footer.partial.gohtml", pathToTemplates),
@@ -60,7 +60,7 @@ func (app *Config) render(w http.ResponseWriter, r *http.Request, t string, td *
 	if err != nil {
 		app.ErrorLog.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return // we can't goo any further, so return
+		return // we can't go any further, so return
 	}
 
 	if err := tmpl.Execute(w, app.AddDefaultData(td, r)); err != nil {
