@@ -1,6 +1,7 @@
 package main
 
 import (
+	"final-project/data"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -26,7 +27,7 @@ type TemplateData struct {
 	/* is user is authenticated: */
 	Authenticated bool
 	Now           time.Time
-	//User          *data.User
+	User          *data.User
 }
 
 // t is the name oof the template to render
@@ -78,6 +79,15 @@ func (app *Config) AddDefaultData(td *TemplateData, r *http.Request) *TemplateDa
 	td.Error = app.Session.PopString(r.Context(), "error")
 	if app.IsAuthenticated(r) {
 		td.Authenticated = true
+
+		// cast the found user to data.user type:
+		user, ok := app.Session.Get(r.Context(), "user").(data.User)
+		if !ok {
+			app.ErrorLog.Println("can't get user from the session")
+		} else {
+			// add all the info of the user in the template(it needs to be a pointer)
+			td.User = &user
+		}
 	}
 
 	td.Now = time.Now()
@@ -86,5 +96,5 @@ func (app *Config) AddDefaultData(td *TemplateData, r *http.Request) *TemplateDa
 }
 
 func (app *Config) IsAuthenticated(r *http.Request) bool {
-	return app.Session.Exists(r.Context(), "userId")
+	return app.Session.Exists(r.Context(), "userID")
 }
