@@ -28,7 +28,7 @@ func main() {
 	go server1(channel1)
 	go server2(channel2)
 
-	/* If we don't put anything here, the program will exit instantly and goroutines won't run because there's nothing too keep the program going.
+	/* If we don't put anything here, the program will exit instantly and goroutines won't run because there's nothing to keep the program going.
 	So let's put some code that will keep the program going. A for loop will do it!
 
 	Why we're not closing the channels? Because it's a contrived example.

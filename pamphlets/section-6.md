@@ -137,7 +137,7 @@ Put data directory next to cmd directory at root of the project.
 ## 60-15. Implementing the loginlogout functions
 Anytime you're login someone in or logout someone, it's always good to renew the token that's stored in the session.
 
-Don't give too much info in case of err on login screen, just let people know they can't login.
+Don't give to much info in case of err on login screen, just let people know they can't login.
 
 In order to add sth to session, you need to register that type when we start the session. You can't just put sth iin the session willy nilly, instead
 you have to register it and then put it. 

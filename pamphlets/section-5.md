@@ -22,7 +22,7 @@ return value) was a zero value because the chan is closed(which indicates this b
 If there's more than one case that the select can match, it chooses one at random! and there's a lot oof situations where that's useful.
 
 The default case in select statement is useful for avoiding deadlocks. Which means if there's a situation where none of the channels in select statement
-are listening, then the default case will stoop your program from crashing. 
+are listening, then the default case will stop your program from crashing. 
 
 ## 39-4. Buffered Channels
 Buffered channels are useful when you **know** how many goroutines you've launched, or, we want to limit the number of goroutines we launch, or
@@ -47,6 +47,6 @@ To exit a goroutine, we can write `return`.
 When the main program exits, any existing goroutines, they just die.
 
 ## 45-10. Trying things out
-Don't forget too run the program using `-race` flag!
+Don't forget to run the program using `-race` flag!
 
 We didn't use any mutexes and wait groups.

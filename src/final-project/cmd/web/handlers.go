@@ -43,6 +43,18 @@ func (app *Config) PostLoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !validPassword {
+		/* send an email notification to notify user he has an invalid login in his account.
+		Note: In production you want to keep track of the number of logins and onplay send it after the third check or sth like that.*/
+		msg := Message{
+			// we'll use the default values for FromName and From fields empty(we have set some defaults for them in createMail func).
+			To:      email,
+			Subject: "Failed log in attempt",
+			Data:    "Invalid login attempt!",
+		}
+
+		// this will send the email in background
+		app.sendEmail(msg)
+
 		app.Session.Put(r.Context(), "error", "Invalid credentials.")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return

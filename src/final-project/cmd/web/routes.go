@@ -24,6 +24,28 @@ func (app *Config) routes() http.Handler {
 	mux.Get("/register", app.RegisterPage)
 	mux.Post("/register", app.PostRegisterPage)
 	mux.Get("/activate-account", app.ActivateAccount)
+	mux.Get("/test-email", func(w http.ResponseWriter, r *http.Request) {
+		m := Mail{
+			Domain: "localhost",
+
+			// we'll be sending test mails to mailshot which will be running in our docker images
+			Host:        "localhost",
+			Port:        1025,   // mailhog's port tis 1025
+			Encryption:  "None", // in development
+			FromAddress: "info@mycompany.com",
+			FromName:    "info",
+			ErrorChan:   make(chan error),
+		}
+
+		msg := Message{
+			To:      "me@here.com",
+			Subject: "Test email",
+			Data:    "Hello, world.",
+		}
+
+		m.sendMail(msg, make(chan error))
+
+	})
 
 	return mux
 }

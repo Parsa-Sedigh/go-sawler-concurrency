@@ -38,7 +38,7 @@ func main() {
 
 	// create channels
 
-	// create waitgroup
+	// create wait group
 	wg := sync.WaitGroup{}
 
 	// set up the application config
@@ -52,6 +52,8 @@ func main() {
 	}
 
 	// set up mail
+	app.Mailer = app.createMail()
+	go app.listenForMail()
 
 	// listen for signals(SIGTERM and SIGINT)
 	go app.listenForShutdown()
@@ -110,7 +112,7 @@ func connectToDB() *sql.DB {
 		}
 
 		log.Println("Backing off for 1 second")
-		time.Sleep(1 * time.Second) // 1 second should be enough time to too the DB
+		time.Sleep(1 * time.Second) // 1 second should be enough time to to the DB
 		counts++
 
 		continue
@@ -188,5 +190,39 @@ func (app *Config) shutdown() {
 	we move to the next line.*/
 	app.Wait.Wait()
 
+	// After we finished sending any email(`app.Wait` wait group is empty)to tell the goroutine to quit, send a true value to done channel
+	app.Mailer.DoneChan <- true
+
 	app.InfoLog.Println("closing channels and shutting down application ...")
+
+	close(app.Mailer.MailerChan)
+	close(app.Mailer.ErrorChan)
+	close(app.Mailer.DoneChan)
+}
+
+func (app *Config) createMail() Mail {
+	// create channels(the 3 channels we're gonna use in email)
+	errorChan := make(chan error)
+
+	/* Do we want the mailerChan as an unbuffered channel?
+	If we use an unbuffered chan, it means we can only queue up one message at a time. So let's make this a buffered channel. We allow
+	100 messages to be in that particular channel at any given time before it blocks.*/
+	mailerChan := make(chan Message, 100)
+	mailerDoneChan := make(chan bool)
+
+	// things like domain oor roost will come from the environment or command line flags or ... . But we just hard code them here!
+	m := Mail{
+		Domain:      "localhost",
+		Host:        "localhost",
+		Port:        1025, // mailhog's port tis 1025
+		Encryption:  "None",
+		FromAddress: "info@mycompany.com",
+		FromName:    "info",
+		ErrorChan:   errorChan,
+		MailerChan:  mailerChan,
+		DoneChan:    mailerDoneChan,
+		Wait:        app.Wait,
+	}
+
+	return m
 }
