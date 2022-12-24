@@ -25,7 +25,7 @@ you'll read it from an environment variable or sth like that.
 
 About `GenerateTokenFromString`: If we pass it a url, it will hand back a url with a hash append to the end.
 About `VerifyToken`: We can pass a signed text to it(like a signed link) and that func will verify that it matches the signature that we would
-generate from our code. That function will append a hash too the string and later we can look at that hash to see if we generated it ourselves?
+generate from our code. That function will append a hash to the string and later we can look at that hash to see if we generated it ourselves?
 This prevents url tamper.
 
 With Expired method, we can have links that expire after some time.
@@ -37,7 +37,9 @@ Restart the app by running: `make restart` and test the code of this lesson byy 
 ## 73-5. Giving user data to our templates
 
 ## 74-6. Displaying the Subscription Plans page
-
+After a user chooses a plan(or if you manually insert a row in user_plans table), because of the session, user needs to login again to see
+his "selected plan".
 
 ## 75-7. Adding a route and trying things out for the Plans page
+
 ## 76-8. Writing a stub handler for choosing a plan
