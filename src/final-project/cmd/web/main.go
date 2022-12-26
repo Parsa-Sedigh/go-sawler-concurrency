@@ -43,12 +43,14 @@ func main() {
 
 	// set up the application config
 	app := Config{
-		Session:  session,
-		Db:       db,
-		InfoLog:  infoLog,
-		ErrorLog: errorLog,
-		Wait:     &wg, // we have a wait group available to our entire application
-		Models:   data.New(db),
+		Session:       session,
+		Db:            db,
+		InfoLog:       infoLog,
+		ErrorLog:      errorLog,
+		Wait:          &wg, // we have a wait group available to our entire application
+		Models:        data.New(db),
+		ErrorChan:     make(chan error),
+		ErrorChanDone: make(chan bool),
 	}
 
 	// set up mail
@@ -58,8 +60,23 @@ func main() {
 	// listen for signals(SIGTERM and SIGINT)
 	go app.listenForShutdown()
 
+	// listen for errors:
+	go app.listenForErrors()
+
 	// listen for web connections. This requires that we have sth like a routes file and also handlers
 	app.serve()
+}
+
+func (app *Config) listenForErrors() {
+	for {
+		select {
+		case err := <-app.ErrorChan:
+			// here you can notify a slack channel or sending a text oro writing it to the DB, in a production app
+			app.ErrorLog.Println(err)
+		case <-app.ErrorChanDone:
+			return
+		}
+	}
 }
 
 // this function starts a web server
@@ -192,12 +209,15 @@ func (app *Config) shutdown() {
 
 	// After we finished sending any email(`app.Wait` wait group is empty)to tell the goroutine to quit, send a true value to done channel
 	app.Mailer.DoneChan <- true
+	app.ErrorChanDone <- true
 
 	app.InfoLog.Println("closing channels and shutting down application ...")
 
 	close(app.Mailer.MailerChan)
 	close(app.Mailer.ErrorChan)
 	close(app.Mailer.DoneChan)
+	close(app.ErrorChan)
+	close(app.ErrorChanDone)
 }
 
 func (app *Config) createMail() Mail {

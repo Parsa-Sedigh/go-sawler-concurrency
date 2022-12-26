@@ -30,14 +30,15 @@ type Mail struct {
 
 // describes an actual message
 type Message struct {
-	From        string // in case you wanna overwrite the default FromAddress
-	FromName    string
-	To          string // holds the email address we're sending to
-	Subject     string
-	Attachments []string       // would contain full path names to any file we want to attach to the email message
-	Data        any            // body of the message
-	DataMap     map[string]any // just a convenient of getting data to the actual template we'll be rendering
-	Template    string
+	From          string // in case you wanna overwrite the default FromAddress
+	FromName      string
+	To            string // holds the email address we're sending to
+	Subject       string
+	Attachments   []string // would contain full path names to any file we want to attach to the email message
+	AttachmentMap map[string]string
+	Data          any            // body of the message
+	DataMap       map[string]any // just a convenient of getting data to the actual template we'll be rendering
+	Template      string
 }
 
 // a function to listen for messages on the mailer chan. This function is gonna run in the background
@@ -76,12 +77,24 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 		msg.FromName = m.FromName
 	}
 
-	// send information to the mail templates
-	data := map[string]any{
-		"message": msg.Data,
+	// tutor is not sure we have to odo this,but it's not gonna hurt to do this!
+	if msg.AttachmentMap == nil {
+		msg.AttachmentMap = make(map[string]string) // just make a initialized map
 	}
 
-	msg.DataMap = data
+	// send information to the mail templates
+	//data := map[string]any{
+	//	"message": msg.Data,
+	//}
+
+	if len(msg.DataMap) == 0 {
+		msg.DataMap = make(map[string]any) // just make a initialized map
+	}
+
+	// do not overwrite everything with the line below:
+	//msg.DataMap = data
+	// instead use this:
+	msg.DataMap["message"] = msg.Data
 
 	// build two versions of the message:
 	// build html mail
@@ -122,6 +135,15 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 	if len(msg.Attachments) > 0 {
 		for _, x := range msg.Attachments {
 			email.AddAttachment(x)
+		}
+	}
+
+	if len(msg.AttachmentMap) != 0 {
+		for key, value := range msg.AttachmentMap {
+			/* first args is the name oof the file stored somewhere and second arg is what we'll call it when we add the attachment. So we can overwrite the
+			stored file name when attaching it to the email. This allows us to have a user-friendly name when attaching generated files with weird names
+			to the email. */
+			email.AddAttachment(value, key)
 		}
 	}
 

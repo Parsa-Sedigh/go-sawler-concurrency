@@ -46,6 +46,21 @@ func (app *Config) routes() http.Handler {
 		m.sendMail(msg, make(chan error))
 
 	})
+
+	// this means, /plans is now /members/plans (any route handler in the below router, has an append /members to it)
+	mux.Mount("/members", app.authRouter())
+
+	return mux
+}
+
+func (app *Config) authRouter() http.Handler {
+	// create a new router:
+	// any route that the user should be authenticated to use it, is gonna get into this router
+	mux := chi.NewRouter()
+
+	// for this particular router(named mux), we use the Auth middleware:
+	mux.Use(app.Auth)
+
 	mux.Get("/plans", app.ChooseSubscription)
 	mux.Get("/subscribe", app.SubscribeToPlan)
 

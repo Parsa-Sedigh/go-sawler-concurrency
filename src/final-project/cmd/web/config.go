@@ -16,4 +16,8 @@ type Config struct {
 	Wait     *sync.WaitGroup
 	Models   data.Models
 	Mailer   Mail
+
+	// centralized channels for error handling
+	ErrorChan     chan error
+	ErrorChanDone chan bool
 }

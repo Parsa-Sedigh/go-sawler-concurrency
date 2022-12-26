@@ -31,7 +31,7 @@ This prevents url tamper.
 With Expired method, we can have links that expire after some time.
 
 ## 71-3. Starting on the handler to create a user
-Restart the app by running: `make restart` and test the code of this lesson byy registering an account(reload the page on /register too).
+Restart the app by running: `make restart` and test the code of this lesson by registering an account(reload the page on /register too).
 
 ## 72-4. Activating a user
 ## 73-5. Giving user data to our templates

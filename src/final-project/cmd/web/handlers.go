@@ -3,8 +3,12 @@ package main
 import (
 	"final-project/data"
 	"fmt"
+	"github.com/phpdave11/gofpdf"
+	"github.com/phpdave11/gofpdf/contrib/gofpdi"
 	"html/template"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
@@ -182,11 +186,12 @@ func (app *Config) ActivateAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Config) ChooseSubscription(w http.ResponseWriter, r *http.Request) {
-	if !app.Session.Exists(r.Context(), "userID") {
-		app.Session.Put(r.Context(), "warning", "You must log in to see this page!")
-		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-		return
-	}
+	// commented this out because it's handled by the app.auth() middleware:
+	//if !app.Session.Exists(r.Context(), "userID") {
+	//	app.Session.Put(r.Context(), "warning", "You must log in to see this page!")
+	//	http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+	//	return
+	//}
 
 	plans, err := app.Models.Plan.GetAll()
 	if err != nil {
@@ -205,20 +210,129 @@ func (app *Config) ChooseSubscription(w http.ResponseWriter, r *http.Request) {
 
 func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 	// get the id of the plan that is chosen
+	id := r.URL.Query().Get("id")
+	planID, _ := strconv.Atoi(id)
 
 	// get the plan from the database
+	plan, err := app.Models.Plan.GetOne(planID)
+	if err != nil {
+		app.Session.Put(r.Context(), "error", "Unable to find plan.")
+		http.Redirect(w, r, "/members/plans", http.StatusSeeOther)
+		return
+	}
 
 	// get the user from the session
+	user, ok := app.Session.Get(r.Context(), "user").(data.User)
 
-	// generate an invoice
+	/* if we can't get the user, chances are they're not logged in(the scenario is they went to the /plans page while they were logged in and then after some time,
+	their session timed out. This isi the only way they could have this error here.) */
+	if !ok {
+		app.Session.Put(r.Context(), "error", "Login first!")
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
 
-	// send an email with the invoice attached
+	// generate an invoice and email it
+	app.Wait.Add(1)
+
+	go func() {
+		defer app.Wait.Done()
+
+		// generate the invoice
+		invoice, err := app.getInvoice(user, plan)
+		if err != nil {
+			/* What do we do here? This function that has this error is running in the background! We have an error but we have no means oof
+			sending that error back. We need to send it to a channel! But which channel? Let's create some in Config struct.*/
+			app.ErrorChan <- err
+		}
+
+		msg := Message{
+			To:       user.Email,
+			Subject:  "Your invoice",
+			Data:     invoice,
+			Template: "invoice",
+		}
+
+		app.sendEmail(msg)
+	}()
 
 	// generate a manual
+	app.Wait.Add(1)
+	// we could put all this logic into the above goroutine, but we assume that getInvoice() has a lot of logic in it.
+	go func() {
+		defer app.Wait.Done()
 
-	// send an email with the manual attached
+		pdf := app.generateManual(user, plan)
+
+		/* write pdf to a temporary folder at the root level of our app.
+		We named the file like below so that we know that we're never gonna have one user generating two manuals at the same instant. So this way we know
+		that  by prepending the user id at the beginning oof this file name, it won't overwrite somebody else's file.*/
+		err := pdf.OutputFileAndClose(fmt.Sprintf("./tmp/%d_manual.pdf", user.ID))
+		if err != nil {
+			app.ErrorChan <- err
+			return
+		}
+
+		// send an email with the manual attached
+		msg := Message{
+			To:      user.Email,
+			Subject: "Your manual",
+			Data:    "Your user manual is attached",
+
+			/* we want a readable name for the file when the customer downloads it. Now we could split the filename on the underscore and hope for the best,
+			but let's add a new field to Message struct named AttachmentMap. Because sometimes you want to attach sth and overwrite the name.*/
+			AttachmentMap: map[string]string{
+				"Manual.pdf": fmt.Sprintf("./tmp/%d_manual.pdf", user.ID),
+			}, // an attachment with a custom name
+		}
+
+		app.sendEmail(msg)
+
+		// test app error chan:
+		app.ErrorChan <- err
+	}()
 
 	// subscribe the user to an account
 
 	// redirect
+	app.Session.Put(r.Context(), "flash", "Subscribed!")
+	http.Redirect(w, r, "/members/plans", http.StatusSeeOther)
+}
+
+func (app *Config) getInvoice(u data.User, plan *data.Plan) (string, error) {
+	// some heavy lifting in a production app...
+
+	return plan.PlanAmountFormatted, nil
+}
+
+func (app *Config) generateManual(u data.User, plan *data.Plan) *gofpdf.Fpdf {
+	// define a PDF, set it's size and margins and ...
+	pdf := gofpdf.New("P", "mm", "Letter", "")
+	pdf.SetMargins(10, 13, 10)
+
+	// import an existing PDF:
+	importer := gofpdi.NewImporter()
+
+	// simulate the amount of time might take to create a PDF:
+	time.Sleep(5 * time.Second)
+
+	t := importer.ImportPage(pdf, "./pdf/manual.pdf", 1, "/MediaBox")
+	pdf.AddPage()
+
+	// use the imported template for that page:
+	importer.UseImportedTemplate(pdf, t, 0, 0, 215.9, 0)
+
+	// you do this(get these numbers) by getting a ruler and measuring where you want sth to appear oon the page
+	pdf.SetX(75)
+	pdf.SetY(150)
+
+	// we chose a font that we're sure that is installed on every computer out there:
+	pdf.SetFont("Arial", "", 12)
+
+	// we want to write a cell that may span multiple lines:
+	pdf.MultiCell(0, 4, fmt.Sprintf("%s %s", u.FirstName, u.LastName), "", "C", false)
+	pdf.Ln(5)
+	pdf.MultiCell(0, 4, fmt.Sprintf("%s User Guide"), "", "C", false)
+
+	return pdf
 }
