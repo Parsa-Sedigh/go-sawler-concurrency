@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+var pathToManual = "./pdf"
+var tmpPath = "./tmp"
+
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "home.page.gohtml", nil)
 }
@@ -42,8 +45,10 @@ func (app *Config) PostLoginPage(w http.ResponseWriter, r *http.Request) {
 
 	// Till here, we found the user, but let's check the password
 	/* PasswordMatches will take the password that user sent us, compare the hash that we have in the DB with the password that supplied,
-	if they match, validPassword is true, if they do not, then the user entered the wrong password. */
-	validPassword, err := user.PasswordMatches(password)
+	if they match, validPassword is true, if they do not, then the user entered the wrong password.
+
+	Instead of writing: user.PasswordMatches(password), use app.Models.User.... . Why? Look at the 89-8 pamphlet. */
+	validPassword, err := app.Models.User.PasswordMatches(password)
 	if err != nil {
 		// note: We don't want to give any more info than "Invalid credentials" away for security reasons
 		app.Session.Put(r.Context(), "error", "Invalid credentials.")
@@ -118,7 +123,7 @@ func (app *Config) PostRegisterPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// insert the user in DB
-	_, err = u.Insert(u)
+	_, err = app.Models.User.Insert(u)
 	if err != nil {
 		// set the key to error so it shows up as an error oon the page
 		app.Session.Put(r.Context(), "error", "Unable to create user.")
@@ -171,7 +176,7 @@ func (app *Config) ActivateAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Active = 1
-	err = u.Update()
+	err = app.Models.User.Update(*u)
 	if err != nil {
 		app.Session.Put(r.Context(), "error", "Unable to update user.")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -211,7 +216,10 @@ func (app *Config) ChooseSubscription(w http.ResponseWriter, r *http.Request) {
 func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 	// get the id of the plan that is chosen
 	id := r.URL.Query().Get("id")
-	planID, _ := strconv.Atoi(id)
+	planID, err := strconv.Atoi(id)
+	if err != nil {
+		app.ErrorLog.Println("Error getting planID: ", err)
+	}
 
 	// get the plan from the database
 	plan, err := app.Models.Plan.GetOne(planID)
@@ -227,7 +235,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 	/* if we can't get the user, chances are they're not logged in(the scenario is they went to the /plans page while they were logged in and then after some time,
 	their session timed out. This isi the only way they could have this error here.) */
 	if !ok {
-		app.Session.Put(r.Context(), "error", "Login first!")
+		app.Session.Put(r.Context(), "error", "Log in first!")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
@@ -267,7 +275,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 		/* write pdf to a temporary folder at the root level of our app.
 		We named the file like below so that we know that we're never gonna have one user generating two manuals at the same instant. So this way we know
 		that  by prepending the user id at the beginning oof this file name, it won't overwrite somebody else's file.*/
-		err := pdf.OutputFileAndClose(fmt.Sprintf("./tmp/%d_manual.pdf", user.ID))
+		err := pdf.OutputFileAndClose(fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID))
 		if err != nil {
 			app.ErrorChan <- err
 			return
@@ -282,7 +290,7 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 			/* we want a readable name for the file when the customer downloads it. Now we could split the filename on the underscore and hope for the best,
 			but let's add a new field to Message struct named AttachmentMap. Because sometimes you want to attach sth and overwrite the name.*/
 			AttachmentMap: map[string]string{
-				"Manual.pdf": fmt.Sprintf("./tmp/%d_manual.pdf", user.ID),
+				"Manual.pdf": fmt.Sprintf("%s/%d_manual.pdf", tmpPath, user.ID),
 			}, // an attachment with a custom name
 		}
 
@@ -292,7 +300,25 @@ func (app *Config) SubscribeToPlan(w http.ResponseWriter, r *http.Request) {
 		app.ErrorChan <- err
 	}()
 
-	// subscribe the user to an account
+	// subscribe the user to a plan
+	err = app.Models.Plan.SubscribeUserToPlan(user, *plan)
+	if err != nil {
+		app.Session.Put(r.Context(), "error", "Error subscribing to plan	!")
+		http.Redirect(w, r, "/members/plan", http.StatusSeeOther)
+		return
+	}
+
+	/* At this point, we have subscribed this user to other plan, but remember, we have user in the session and the user in the session is still
+	subscribed to the old plan. So we need to update the user in the session, we just need a fresh copy from the DB (note that user.ID didn't change so it's safe to
+	use it here).*/
+	u, err := app.Models.User.GetOne(user.ID)
+	if err != nil {
+		app.Session.Put(r.Context(), "error", "Error getting user from database!")
+		http.Redirect(w, r, "/members/plan", http.StatusSeeOther)
+		return
+	}
+
+	app.Session.Put(r.Context(), "user", u)
 
 	// redirect
 	app.Session.Put(r.Context(), "flash", "Subscribed!")
@@ -316,7 +342,7 @@ func (app *Config) generateManual(u data.User, plan *data.Plan) *gofpdf.Fpdf {
 	// simulate the amount of time might take to create a PDF:
 	time.Sleep(5 * time.Second)
 
-	t := importer.ImportPage(pdf, "./pdf/manual.pdf", 1, "/MediaBox")
+	t := importer.ImportPage(pdf, fmt.Sprintf("%s/manual.pdf", pathToManual), 1, "/MediaBox")
 	pdf.AddPage()
 
 	// use the imported template for that page:
@@ -332,7 +358,7 @@ func (app *Config) generateManual(u data.User, plan *data.Plan) *gofpdf.Fpdf {
 	// we want to write a cell that may span multiple lines:
 	pdf.MultiCell(0, 4, fmt.Sprintf("%s %s", u.FirstName, u.LastName), "", "C", false)
 	pdf.Ln(5)
-	pdf.MultiCell(0, 4, fmt.Sprintf("%s User Guide"), "", "C", false)
+	pdf.MultiCell(0, 4, fmt.Sprintf("%s User Guide", plan.PlanName), "", "C", false)
 
 	return pdf
 }
